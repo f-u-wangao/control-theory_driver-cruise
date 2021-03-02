@@ -47,7 +47,7 @@
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <IncludePath>F:\编程\CyberTORCS\TORCS-Visual 0.1\TORCS-Visual 0.1 test\include;$(IncludePath)</IncludePath>
-    <LibraryPath>F:\编程\CyberTORCS\TORCS-Visual 0.1\TORCS-Visual 0.1 test\vs2019;$(LibraryPath)</LibraryPath>
+    <LibraryPath>F:\编程\CyberTORCS\TORCS-Visual 0.1\TORCS-Visual 0.1 test\vs2019\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

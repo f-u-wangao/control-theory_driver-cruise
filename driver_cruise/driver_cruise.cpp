@@ -1,6 +1,6 @@
-/*      
-     WARNING !
-     
+/*
+	 WARNING !
+
 	 DO NOT MODIFY CODES BELOW!
 */
 
@@ -8,6 +8,7 @@
 #include <windows.h>
 #endif
 
+#include "class_Visualization.h"
 #include "driver_cruise.h"
 #include "stdio.h"
 #include <ostream>
@@ -17,24 +18,24 @@
 
 static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, float speed, float acc, float width, int gearbox, float rpm);
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear);
-static int InitFuncPt(int index, void *pt);
+static int InitFuncPt(int index, void* pt);
 
 // Module Entry Point
-extern "C" int driver_cruise(tModInfo *modInfo)
+extern "C" int driver_cruise(tModInfo * modInfo)
 {
-	memset(modInfo, 0, 10*sizeof(tModInfo));
-	modInfo[0].name    = "driver_cruise";	// name of the module (short).
-	modInfo[0].desc    =  "user module for CyberCruise" ;	// Description of the module (can be long).
+	memset(modInfo, 0, 10 * sizeof(tModInfo));
+	modInfo[0].name = "driver_cruise";	// name of the module (short).
+	modInfo[0].desc = "user module for CyberCruise";	// Description of the module (can be long).
 	modInfo[0].fctInit = InitFuncPt;			// Init function.
-	modInfo[0].gfId    = 0;
-	modInfo[0].index   = 0;
+	modInfo[0].gfId = 0;
+	modInfo[0].index = 0;
 	return 0;
 }
 
 // Module interface initialization.
-static int InitFuncPt(int, void *pt)
+static int InitFuncPt(int, void* pt)
 {
-	tUserItf *itf = (tUserItf *)pt;
+	tUserItf* itf = (tUserItf*)pt;
 	itf->userDriverGetParam = userDriverGetParam;
 	itf->userDriverSetParam = userDriverSetParam;
 	return 0;
@@ -42,7 +43,7 @@ static int InitFuncPt(int, void *pt)
 
 
 /*
-     WARNING!
+	 WARNING!
 
 	 DO NOT MODIFY CODES ABOVE!
 */
@@ -76,21 +77,21 @@ double kd_d;	//kd for direction						     //
 // Direction Control Variables						         //
 double D_err;//direction error					             //
 double D_errDiff = 0;//direction difference(Differentiation) //
-double D_errSum=0;//sum of direction error(Integration)      //
+double D_errSum = 0;//sum of direction error(Integration)    //
 // Speed Control Variables								     //
 circle c;												     //
 double expectedSpeed;//      							     //
 double curSpeedErr;//speed error   		                     //
-double speedErrSum=0;//sum of speed error(Integration)       //
+double speedErrSum = 0;//sum of speed error(Integration)     //
 int startPoint;											     //
-int delta=20;												 //
+int delta = 20;												 //
 //***********************************************************//
 
 //*******************Other parameters*******************//
 const int topGear = 6;									//
 double tmp;												//
-bool flag=true;											//
-double offset=0;										//
+bool flag = true;										//
+double offset = 0;										//
 double Tmp = 0;
 //******************************************************//
 
@@ -98,20 +99,20 @@ double Tmp = 0;
 // Function updateGear:															//
 //		Update Gear automatically according to the current speed.				//
 //		Implemented as Schmitt trigger.											//
-void updateGear(int *cmdGear);													//
+void updateGear(int* cmdGear);													//
 // Function constrain:															//
 //		Given input, outputs value with boundaries.								//
-double constrain(double lowerBoundary, double upperBoundary,double input);		//
+double constrain(double lowerBoundary, double upperBoundary, double input);		//
 // Function getR:																//
 //		Given three points ahead, outputs a struct circle.						//
 //		{radius:[1,500], sign{-1:left,1:right}									//
 circle getR(float x1, float y1, float x2, float y2, float x3, float y3);		//
 //******************************************************************************//
 
-static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, float speed, float acc, float width, int gearbox, float rpm){
+static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, float speed, float acc, float width, int gearbox, float rpm) {
 	/* write your own code here */
-	
-	for (int i = 0; i< 200; ++i) _midline[i][0] = midline[i][0], _midline[i][1] = midline[i][1];
+
+	for (int i = 0; i < 200; ++i) _midline[i][0] = midline[i][0], _midline[i][1] = midline[i][1];
 	_yaw = yaw;
 	_yawrate = yawrate;
 	_speed = speed;
@@ -121,8 +122,16 @@ static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, 
 	_gearbox = gearbox;
 }
 
-static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear){
-	if(parameterSet==false)		// Initialization Part
+//******************** Global Variables for OpenCV Visualization *******************//
+// Shiyi Wu 2020.03.17																//
+// Under Development																//
+cls_VISUAL cls_visual;																//
+int nKey = 0;																		//
+char cKeyName[512];																	//
+//**********************************************************************************//
+
+static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
+	if (parameterSet == false)		// Initialization Part
 	{
 		PIDParamSetter();
 	}
@@ -131,29 +140,29 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		// Speed Control
 		/*
 		You can modify the limited speed in this module
-		Enjoy  -_-  
+		Enjoy  -_-
 		*/
 		startPoint = _speed * 0.445;
-		c = getR(_midline[startPoint][0],_midline[startPoint][1],_midline[startPoint+delta][0],_midline[startPoint+delta][1],_midline[startPoint+2*delta][0],_midline[startPoint+2*delta][1]);
-		if (c.r<=60)
+		c = getR(_midline[startPoint][0], _midline[startPoint][1], _midline[startPoint + delta][0], _midline[startPoint + delta][1], _midline[startPoint + 2 * delta][0], _midline[startPoint + 2 * delta][1]);
+		if (c.r <= 60)
 		{
-			expectedSpeed = constrain(45,100,c.r*c.r*(-0.046)+c.r*5.3-59.66);
+			expectedSpeed = constrain(45, 100, c.r * c.r * (-0.046) + c.r * 5.3 - 59.66);
 		}
 		else
 		{
-			expectedSpeed = constrain(100,100,c.r*1.4);
+			expectedSpeed = constrain(100, 100, c.r * 1.4);
 		}
 		curSpeedErr = expectedSpeed - _speed;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
 		if (curSpeedErr > 0)
 		{
-			
-			if (abs(*cmdSteer)<0.6)
+
+			if (abs(*cmdSteer) < 0.6)
 			{
-				*cmdAcc = constrain(0.0,1.0,kp_s * curSpeedErr + ki_s * speedErrSum + offset);
+				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset);
 				*cmdBrake = 0;
 			}
-			else if (abs(*cmdSteer)>0.70)
+			else if (abs(*cmdSteer) > 0.70)
 			{
 				*cmdAcc = 0.005 + offset;
 				*cmdBrake = 0;
@@ -163,33 +172,33 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 				*cmdAcc = 0.11 + offset;
 				*cmdBrake = 0;
 			}
-		
+
 		}
 		else if (curSpeedErr < 0)
 		{
-			*cmdBrake = constrain(0.0,0.8,-kp_s *curSpeedErr/5 - offset/3);
+			*cmdBrake = constrain(0.0, 0.8, -kp_s * curSpeedErr / 5 - offset / 3);
 			*cmdAcc = 0;
 		}
 
 		updateGear(cmdGear);
-		
+
 		/******************************************Modified by Yuan Wei********************************************/
 		/*
 		Please select a error model and coding for it here, you can modify the steps to get a new 'D_err',this is just a sample.
 		Once you choose the error model, you can rectify the value of PID to improve your control performance.
-		Enjoy  -_-  
+		Enjoy  -_-
 		*/
 		// Direction Control		
 		//set the param of PID controller
-        kp_d = 1;
-        ki_d = 0;
+		kp_d = 1;
+		ki_d = 0;
 		kd_d = 0;
 
 		//std::fstream file;
 		//FILE *fp;
-		
+
 		//get the error 
-		D_err = -atan2(_midline[5][0],_midline[5][1]);//only track the aiming point on the middle line
+		D_err = -atan2(_midline[5][0], _midline[5][1]);//only track the aiming point on the middle line
 
 		//the differential and integral operation 
 		D_errDiff = D_err - Tmp;
@@ -197,33 +206,48 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer =constrain(-1.0,1.0,kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff);
+
+#pragma region Wu
+		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
+
+		for (int i = 0; i < 200; i++)
+			cv::circle(im1Src, cv::Point(200 + _midline[i][0] * 2, 400 - _midline[i][1] * 2), 2, cv::Scalar(100, 100, 100));
+		sprintf_s(cKeyName, "Key: %c is pushed", nKey);
+		cv::putText(im1Src, cKeyName, cv::Point(20, 50), cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255));
+		cv::imshow("Path", im1Src);
+		cls_visual.Fig1Y(5, 0, 150, 30, "CurrentV", _speed, "+10", _speed + 10.0/*, "-10", _speed - 10.0*/);
+		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "*Acc:", *cmdAcc, "TargetV", expectedSpeed);
+		int tempKey = cv::waitKey(1);
+		if (tempKey != -1)
+			nKey = tempKey;
+#pragma endregion
 
 		//print some useful info on the terminal
-		printf("D_err : %f \n", D_err);
-		printf("cmdSteer %f \n", *cmdSteer);	
+		printf("D_err : %f \t\t", D_err);
+		printf("cmdSteer %f \n", *cmdSteer);
 		/******************************************End by Yuan Wei********************************************/
 	}
 }
 
 void PIDParamSetter()
 {
-	
-		kp_s=0.02;
-		ki_s=0;
-		kd_s=0;
-		kp_d=1.35;
-		ki_d=0.151;
-		kd_d=0.10;
-		parameterSet = true;
-	
+
+	kp_s = 0.02;
+	ki_s = 0;
+	kd_s = 0;
+	kp_d = 1.35;
+	ki_d = 0.151;
+	kd_d = 0.10;
+	parameterSet = true;
+
 }
 
-void updateGear(int *cmdGear)
+void updateGear(int* cmdGear)
 {
 	if (_gearbox == 1)
 	{
-		if (_speed >= 60 && topGear >1)
+		if (_speed >= 60 && topGear > 1)
 		{
 			*cmdGear = 2;
 		}
@@ -238,7 +262,7 @@ void updateGear(int *cmdGear)
 		{
 			*cmdGear = 1;
 		}
-		else if (_speed >=105 && topGear >2)
+		else if (_speed >= 105 && topGear > 2)
 		{
 			*cmdGear = 3;
 		}
@@ -253,11 +277,11 @@ void updateGear(int *cmdGear)
 		{
 			*cmdGear = 2;
 		}
-		else if (_speed >= 145 && topGear >3)
+		else if (_speed >= 145 && topGear > 3)
 		{
 			*cmdGear = 4;
 		}
-		else 
+		else
 		{
 			*cmdGear = 3;
 		}
@@ -268,11 +292,11 @@ void updateGear(int *cmdGear)
 		{
 			*cmdGear = 3;
 		}
-		else if (_speed >= 187 && topGear >4)
+		else if (_speed >= 187 && topGear > 4)
 		{
 			*cmdGear = 5;
 		}
-		else 
+		else
 		{
 			*cmdGear = 4;
 		}
@@ -283,11 +307,11 @@ void updateGear(int *cmdGear)
 		{
 			*cmdGear = 4;
 		}
-		else if (_speed >= 234 && topGear >5)
+		else if (_speed >= 234 && topGear > 5)
 		{
 			*cmdGear = 6;
 		}
-		else 
+		else
 		{
 			*cmdGear = 5;
 		}
@@ -298,7 +322,7 @@ void updateGear(int *cmdGear)
 		{
 			*cmdGear = 5;
 		}
-		else 
+		else
 		{
 			*cmdGear = 6;
 		}
@@ -309,7 +333,7 @@ void updateGear(int *cmdGear)
 	}
 }
 
-double constrain(double lowerBoundary, double upperBoundary,double input)
+double constrain(double lowerBoundary, double upperBoundary, double input)
 {
 	if (input > upperBoundary)
 		return upperBoundary;
@@ -321,23 +345,23 @@ double constrain(double lowerBoundary, double upperBoundary,double input)
 
 circle getR(float x1, float y1, float x2, float y2, float x3, float y3)
 {
-	double a,b,c,d,e,f;
-    double r,x,y;
-	
-	a=2*(x2-x1);
-    b=2*(y2-y1);
-    c=x2*x2+y2*y2-x1*x1-y1*y1;
-    d=2*(x3-x2);
-    e=2*(y3-y2);
-    f=x3*x3+y3*y3-x2*x2-y2*y2;
-    x=(b*f-e*c)/(b*d-e*a);
-    y=(d*c-a*f)/(b*d-e*a);
-    r=sqrt((x-x1)*(x-x1)+(y-y1)*(y-y1));
-	x=constrain(-1000.0,1000.0,x);
-	y=constrain(-1000.0,1000.0,y);
-	r=constrain(1.0,500.0,r);
-	int sign = (x>0)?1:-1;
-	circle tmp = {r,sign};
+	double a, b, c, d, e, f;
+	double r, x, y;
+
+	a = 2 * (x2 - x1);
+	b = 2 * (y2 - y1);
+	c = x2 * x2 + y2 * y2 - x1 * x1 - y1 * y1;
+	d = 2 * (x3 - x2);
+	e = 2 * (y3 - y2);
+	f = x3 * x3 + y3 * y3 - x2 * x2 - y2 * y2;
+	x = (b * f - e * c) / (b * d - e * a);
+	y = (d * c - a * f) / (b * d - e * a);
+	r = sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
+	x = constrain(-1000.0, 1000.0, x);
+	y = constrain(-1000.0, 1000.0, y);
+	r = constrain(1.0, 500.0, r);
+	int sign = (x > 0) ? 1 : -1;
+	circle tmp = { r,sign };
 	return tmp;
 }
 
