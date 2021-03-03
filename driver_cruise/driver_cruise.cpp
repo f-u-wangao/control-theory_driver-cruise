@@ -91,7 +91,7 @@ int delta = 20;												 //
 const int topGear = 6;									//
 double tmp;												//
 bool flag = true;										//
-double offset = 0;										//
+double offset = 0.1;									//
 double Tmp = 0;
 //******************************************************//
 
@@ -191,7 +191,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 1;
+		kp_d = /*1*/0.3;
 		ki_d = 0;
 		kd_d = 0;
 
@@ -207,7 +207,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err /*+ ki_d * D_errSum + kd_d * D_errDiff*/ + 2 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err /*+ ki_d * D_errSum + kd_d * D_errDiff*/ + 3 * _yaw);
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -227,8 +227,8 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		//print some useful info on the terminal
 		printf("D_err : %f \t", D_err);
 		printf("c.r : %f \t", c.r);
-		printf("speed1 : %f \t", c.r * c.r * (-0.030) + c.r * 5.3 - 59.66);
-		printf("speed2 : %f \t", c.r * c.r * (-0.026) + c.r * 5.3 - 59.66);
+		printf("cmdAcc : %f \t", *cmdAcc);
+		printf("cmdBrake : %f \t", *cmdBrake);
 		printf("cmdSteer %f \n", *cmdSteer);
 		/******************************************End by Yuan Wei********************************************/
 	}
@@ -240,7 +240,7 @@ void PIDParamSetter()
 	kp_s = 0.02;
 	ki_s = 0;
 	kd_s = 0;
-	kp_d = /*1.35*/0.4;
+	kp_d = 1.35;
 	ki_d = 0.151;
 	kd_d = 0.10;
 	parameterSet = true;
