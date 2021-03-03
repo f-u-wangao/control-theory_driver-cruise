@@ -91,7 +91,7 @@ int delta = 20;												 //
 const int topGear = 6;									//
 double tmp;												//
 bool flag = true;										//
-double offset = 0.5;									//
+double offset = 0.9;									//
 double Tmp = 0;
 //******************************************************//
 
@@ -142,7 +142,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		You can modify the limited speed in this module
 		Enjoy  -_-
 		*/
-		startPoint = _speed * 0.445;
+		startPoint = _speed * /*0.445*/0.35;
 		c = getR(_midline[startPoint][0], _midline[startPoint][1], _midline[startPoint + delta][0], _midline[startPoint + delta][1], _midline[startPoint + 2 * delta][0], _midline[startPoint + 2 * delta][1]);
 		if (c.r <= 200)
 		{
@@ -160,7 +160,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 
 			if (abs(*cmdSteer) < 0.6)
 			{
-				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset);
+				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset - D_err + offset);
 				*cmdBrake = 0;
 			}
 			else if (abs(*cmdSteer) > 0.70)
@@ -177,7 +177,8 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		}
 		else if (curSpeedErr < 0)
 		{
-			*cmdBrake = constrain(0.0, 0.8, -kp_s * curSpeedErr / 5 - offset / /*3*/6);
+			if (c.r <= 200) *cmdBrake = constrain(0.0, 0.8, -kp_s * curSpeedErr / 5 /*- offset / 6*/);
+			else *cmdBrake = 0;
 			*cmdAcc = 0;
 		}
 
@@ -311,7 +312,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 4;
 		}
-		else if (_speed >= 234 && topGear > 5)
+		else if (_speed >= 244 && topGear > 5)
 		{
 			*cmdGear = 6;
 		}
