@@ -252,7 +252,7 @@ void updateGear(int* cmdGear)
 {
 	if (_gearbox == 1)
 	{
-		if (_speed >= 60 && topGear > 1)
+		if (_speed >= 65 && topGear > 1)
 		{
 			*cmdGear = 2;
 		}
@@ -267,7 +267,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 1;
 		}
-		else if (_speed >= 105 && topGear > 2)
+		else if (_speed >= 115 && topGear > 2)
 		{
 			*cmdGear = 3;
 		}
@@ -282,7 +282,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 2;
 		}
-		else if (_speed >= 145 && topGear > 3)
+		else if (_speed >= 155 && topGear > 3)
 		{
 			*cmdGear = 4;
 		}
@@ -297,7 +297,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 3;
 		}
-		else if (_speed >= 187 && topGear > 4)
+		else if (_speed >= 197 && topGear > 4)
 		{
 			*cmdGear = 5;
 		}
