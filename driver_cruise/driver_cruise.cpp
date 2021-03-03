@@ -91,7 +91,7 @@ int delta = 20;												 //
 const int topGear = 6;									//
 double tmp;												//
 bool flag = true;										//
-double offset = 0.1;									//
+double offset = 0.2;									//
 double Tmp = 0;
 //******************************************************//
 
@@ -207,7 +207,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err /*+ ki_d * D_errSum + kd_d * D_errDiff*/ + 3 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * (D_err + 1) /*+ ki_d * D_errSum + kd_d * D_errDiff*/ + 3 * _yaw);
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
