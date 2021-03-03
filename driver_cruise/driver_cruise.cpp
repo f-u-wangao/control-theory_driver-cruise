@@ -144,13 +144,14 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		startPoint = _speed * 0.445;
 		c = getR(_midline[startPoint][0], _midline[startPoint][1], _midline[startPoint + delta][0], _midline[startPoint + delta][1], _midline[startPoint + 2 * delta][0], _midline[startPoint + 2 * delta][1]);
-		if (c.r <= 60)
+		if (c.r <= 200)
 		{
-			expectedSpeed = constrain(45, 100, c.r * c.r * (-0.046) + c.r * 5.3 - 59.66);
+			//expectedSpeed = constrain(180, 250, c.r * c.r * (-0.046) + c.r * 5.3 - 59.66);
+			expectedSpeed = constrain(160, 250, (341 * c.r - 25500) / (c.r - 20.53));
 		}
 		else
 		{
-			expectedSpeed = constrain(100, 100, c.r * 1.4);
+			expectedSpeed = constrain(250, 400, c.r * 1.4);
 		}
 		curSpeedErr = expectedSpeed - _speed;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
@@ -206,7 +207,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err /*+ ki_d * D_errSum + kd_d * D_errDiff*/ + 2 * _yaw);
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -224,7 +225,10 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 #pragma endregion
 
 		//print some useful info on the terminal
-		printf("D_err : %f \t\t", D_err);
+		printf("D_err : %f \t", D_err);
+		printf("c.r : %f \t", c.r);
+		printf("speed1 : %f \t", c.r * c.r * (-0.030) + c.r * 5.3 - 59.66);
+		printf("speed2 : %f \t", c.r * c.r * (-0.026) + c.r * 5.3 - 59.66);
 		printf("cmdSteer %f \n", *cmdSteer);
 		/******************************************End by Yuan Wei********************************************/
 	}
@@ -236,7 +240,7 @@ void PIDParamSetter()
 	kp_s = 0.02;
 	ki_s = 0;
 	kd_s = 0;
-	kp_d = 1.35;
+	kp_d = /*1.35*/0.4;
 	ki_d = 0.151;
 	kd_d = 0.10;
 	parameterSet = true;
