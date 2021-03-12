@@ -77,23 +77,21 @@ double kd_d;	//kd for direction						     //
 // Direction Control Variables						         //
 double D_err;//direction error					             //
 double D_errDiff = 0;//direction difference(Differentiation) //
-double D_errSum = 0;//sum of direction error(Integration)    //
+double D_errSum = 0;//sum of direction error(Integration)      //
 // Speed Control Variables								     //
-circle c, c_brake;												     //
+circle c;												     //
 double expectedSpeed;//      							     //
 double curSpeedErr;//speed error   		                     //
-double speedErrSum = 0;//sum of speed error(Integration)     //
-int startPoint, startPoint_brake;							 //
+double speedErrSum = 0;//sum of speed error(Integration)       //
+int startPoint;											     //
 int delta = 20;												 //
 //***********************************************************//
-
-double D_err_special;
 
 //*******************Other parameters*******************//
 const int topGear = 6;									//
 double tmp;												//
-bool flag = true;										//
-double offset = 0.1;									//
+bool flag = true;											//
+double offset = 0;										//
 double Tmp = 0;
 //******************************************************//
 
@@ -124,13 +122,9 @@ static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, 
 	_gearbox = gearbox;
 }
 
-//******************** Global Variables for OpenCV Visualization *******************//
-// Shiyi Wu 2020.03.17																//
-// Under Development																//
 cls_VISUAL cls_visual;																//
 int nKey = 0;																		//
-char cKeyName[512];																	//
-//**********************************************************************************//
+char cKeyName[512];
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
 	if (parameterSet == false)		// Initialization Part
@@ -145,52 +139,36 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Enjoy  -_-
 		*/
 		startPoint = _speed * 0.445;
-		startPoint_brake = 0.00001788 * pow(_speed, 3) - 0.005962 * _speed * _speed + 0.7558 * _speed - 25.75;
-		c = getR(_midline[startPoint][0], _midline[startPoint][1], _midline[startPoint + delta][0], _midline[startPoint + delta][1], _midline[startPoint + 2 * delta][0], _midline[startPoint + 2 * delta][1]);
-		c_brake = getR(_midline[startPoint_brake][0], _midline[startPoint_brake][1], _midline[startPoint_brake + delta][0], _midline[startPoint_brake + delta][1], _midline[startPoint_brake + 2 * delta][0], _midline[startPoint_brake + 2 * delta][1]);
-		if (c.r <= 200)
-		{
-			//expectedSpeed = constrain(180, 250, c.r * c.r * (-0.046) + c.r * 5.3 - 59.66);
-			expectedSpeed = constrain(30, 200, 204.5 * sin(0.005773 * c.r + 0.03955) + 14.69 * sin(0.05444 * c.r + 0.9147));
-		}
-		else
-		{
-			expectedSpeed = constrain(200, 270, c.r * 1.4);
-		}
+		int m = constrain(1, 210, 0.002582 * _speed * _speed + 0.003931 * _speed + 10.84);
+		circle c = getR(_midline[0][0], _midline[0][1], _midline[3][0], _midline[3][1], _midline[m][0], _midline[m][1]);
+
+		expectedSpeed = 0.000004539 * c.r * c.r * c.r - 0.005124 * c.r * c.r + 1.877 * c.r + 45.61;
 		curSpeedErr = expectedSpeed - _speed;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
-		if (curSpeedErr > 0 && c.r >= 80)
+		if (curSpeedErr > 0)
 		{
 
 			if (abs(*cmdSteer) < 0.6)
 			{
-				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset );
+				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset);
 				*cmdBrake = 0;
 			}
 			else if (abs(*cmdSteer) > 0.70)
 			{
-				*cmdAcc = (0.005 + offset);
+				*cmdAcc = 0.005 + offset;
 				*cmdBrake = 0;
 			}
 			else
 			{
-				*cmdAcc = (0.11 + offset);
+				*cmdAcc = 0.11 + offset;
 				*cmdBrake = 0;
 			}
 
 		}
 		else if (curSpeedErr < 0)
 		{
-			if (c_brake.r <= 300)
-			{
-				*cmdBrake = constrain(0.0, 1, -kp_s * curSpeedErr /*- offset / 6*/);
-				*cmdAcc = 0;
-			}
-			else
-			{
-				*cmdBrake = 0;
-				*cmdAcc = offset;
-			}
+			*cmdBrake = 1;
+			*cmdAcc = 0;
 		}
 
 		updateGear(cmdGear);
@@ -203,35 +181,30 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 1.5;
-		ki_d = 0;
-		kd_d = 1;
+		kp_d = 10;
+		ki_d = 0.001;
+		kd_d = 15;
 
 		//std::fstream file;
 		//FILE *fp;
 
-		//get the error 
-		D_err = -atan2(_midline[5][0], _midline[5][1]);//only track the aiming point on the middle line
+		//get the error
+		int e = constrain(10, 52, startPoint - 25);
+		D_err = -atan2(_midline[e][0], _midline[e][1]);//only track the aiming point on the middle line
 
 		//the differential and integral operation 
 		D_errDiff = D_err - Tmp;
 		D_errSum = D_errSum + D_err;
 		Tmp = D_err;
 
-		//set D_err_special
-		if (c.r <= 400)
-		{
-			if (_midline[startPoint / 2][0] > _width / 18) D_err_special = D_err - _width / 18 * (1 - c.r / 500);
-			else if (_midline[startPoint / 2][0] < -_width / 18) D_err_special = D_err + _width / 18 * (1 - c.r / 500);
-			else D_err_special = D_err;
-		}
-		else
-		{
-			D_err_special = D_err;
-		}
-
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-0.8, 0.8, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff + 3 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff + 0.4 * _yaw);
+
+		//print some useful info on the terminal
+		printf("D_err : %f \t", D_err);
+		printf("cmdBrake : %f \t", *cmdBrake);
+		printf("cmdSteer : %f \t", *cmdSteer);
+		printf("c.r %f \n", c.r);
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -241,21 +214,12 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		sprintf_s(cKeyName, "Key: %c is pushed", nKey);
 		cv::putText(im1Src, cKeyName, cv::Point(20, 50), cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255));
 		cv::imshow("Path", im1Src);
-		cls_visual.Fig1Y(5, 0, 150, 30, "CurrentV", _speed, "+10", _speed + 10.0/*, "-10", _speed - 10.0*/);
+		cls_visual.Fig1Y(5, 0, 150, 30, "CurrentV", _speed, "c.r", c.r);
 		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "*Acc:", *cmdAcc, "TargetV", expectedSpeed);
 		int tempKey = cv::waitKey(1);
 		if (tempKey != -1)
 			nKey = tempKey;
 #pragma endregion
-
-		//print some useful info on the terminal
-		printf("speed : %f \t", _speed);
-		printf("yaw : %f \t", _yaw);
-		printf("c.r : %f \t", c.r);
-		printf("c_beake.r : %f \t", c_brake.r);
-		printf("cmdAcc : %f \t", *cmdAcc);
-		printf("cmdBrake : %f \t", *cmdBrake);
-		printf("cmdSteer : %f \n", *cmdSteer);
 		/******************************************End by Yuan Wei********************************************/
 	}
 }
@@ -263,8 +227,8 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 void PIDParamSetter()
 {
 
-	kp_s = 0.01;
-	ki_s = 10;
+	kp_s = 0.02;
+	ki_s = 0.1;
 	kd_s = 0;
 	kp_d = 1.35;
 	ki_d = 0.151;
@@ -277,7 +241,7 @@ void updateGear(int* cmdGear)
 {
 	if (_gearbox == 1)
 	{
-		if (_speed >= 65 && topGear > 1)
+		if (_speed >= 60 && topGear > 1)
 		{
 			*cmdGear = 2;
 		}
@@ -292,7 +256,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 1;
 		}
-		else if (_speed >= 115 && topGear > 2)
+		else if (_speed >= 105 && topGear > 2)
 		{
 			*cmdGear = 3;
 		}
@@ -307,7 +271,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 2;
 		}
-		else if (_speed >= 155 && topGear > 3)
+		else if (_speed >= 145 && topGear > 3)
 		{
 			*cmdGear = 4;
 		}
@@ -337,7 +301,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 4;
 		}
-		else if (_speed >= 244 && topGear > 5)
+		else if (_speed >= 250 && topGear > 5)
 		{
 			*cmdGear = 6;
 		}
