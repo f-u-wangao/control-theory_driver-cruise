@@ -127,6 +127,7 @@ int nKey = 0;																		//
 char cKeyName[512];
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
+	static double expectedSpeed1;
 	if (parameterSet == false)		// Initialization Part
 	{
 		PIDParamSetter();
@@ -139,10 +140,11 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Enjoy  -_-
 		*/
 		startPoint = _speed * 0.445;
-		int m = constrain(1, 210, 0.002582 * _speed * _speed + 0.003931 * _speed + 10.84);
-		circle c = getR(_midline[0][0], _midline[0][1], _midline[3][0], _midline[3][1], _midline[m][0], _midline[m][1]);
+		int m = constrain(10, 210, -0.0000001185 * _speed * _speed * _speed * _speed + 0.00005702 * _speed * _speed * _speed - 0.006001 * _speed * _speed + 0.5072 * _speed + 1.33);
+		circle c = getR(_midline[0][0], _midline[0][1], _midline[5][0], _midline[5][1], _midline[m][0], _midline[m][1]);
 
 		expectedSpeed = 0.000004539 * c.r * c.r * c.r - 0.005124 * c.r * c.r + 1.877 * c.r + 45.61;
+
 		curSpeedErr = expectedSpeed - _speed;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
 		if (curSpeedErr > 0)
@@ -181,15 +183,15 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 10;
-		ki_d = 0.001;
-		kd_d = 15;
+		kp_d = 12;
+		ki_d = 0.003;
+		kd_d = 30;
 
 		//std::fstream file;
 		//FILE *fp;
 
 		//get the error
-		int e = constrain(10, 52, startPoint - 25);
+		int e = constrain(10, 100, 0.000004381 * _speed * _speed * _speed - 0.001378 * _speed * _speed + 0.3886 * _speed - 1);
 		D_err = -atan2(_midline[e][0], _midline[e][1]);//only track the aiming point on the middle line
 
 		//the differential and integral operation 
@@ -198,13 +200,11 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff + 0.4 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff + 0.5 * _yaw);
 
 		//print some useful info on the terminal
-		printf("D_err : %f \t", D_err);
-		printf("cmdBrake : %f \t", *cmdBrake);
-		printf("cmdSteer : %f \t", *cmdSteer);
-		printf("c.r %f \n", c.r);
+		printf("D_err : %f \n", D_err);
+		printf("cmdSteer %f \n", *cmdSteer);
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
