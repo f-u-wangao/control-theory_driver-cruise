@@ -140,12 +140,18 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Enjoy  -_-
 		*/
 		startPoint = _speed * 0.445;
-		int m = constrain(10, 210, -0.0000001185 * _speed * _speed * _speed * _speed + 0.00005702 * _speed * _speed * _speed - 0.006001 * _speed * _speed + 0.5072 * _speed + 1.33);
-		circle c = getR(_midline[0][0], _midline[0][1], _midline[5][0], _midline[5][1], _midline[m][0], _midline[m][1]);
+		int m = constrain(21, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 11.511);
+		circle c = getR(_midline[m / 4][0], _midline[m / 4][1], _midline[m / 2][0], _midline[m / 2][1], _midline[m][0], _midline[m][1]);
+		circle c1 = getR(_midline[0][0], _midline[0][1], _midline[5][0], _midline[5][1], _midline[m][0], _midline[m][1]);
 
-		expectedSpeed = 0.000004539 * c.r * c.r * c.r - 0.005124 * c.r * c.r + 1.877 * c.r + 45.61;
+		double o = constrain(0, c1.r, c.r);
+		expectedSpeed = 2.93e-06 * o * o * o - 0.003693 * o * o + 1.583 * o + 55.43;
 
+		static double SpeedErr = 0;
+		double Speediff;
 		curSpeedErr = expectedSpeed - _speed;
+		Speediff = curSpeedErr - SpeedErr;
+		SpeedErr = curSpeedErr;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
 		if (curSpeedErr > 0)
 		{
@@ -157,7 +163,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 			}
 			else if (abs(*cmdSteer) > 0.70)
 			{
-				*cmdAcc = 0.005 + offset;
+				*cmdAcc = 0.055 + offset;
 				*cmdBrake = 0;
 			}
 			else
@@ -169,7 +175,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		}
 		else if (curSpeedErr < 0)
 		{
-			*cmdBrake = 1;
+			*cmdBrake = constrain(0, 1, -ki_s * curSpeedErr / 3 - kd_s * SpeedErr - ki_s * speedErrSum);
 			*cmdAcc = 0;
 		}
 
@@ -183,15 +189,15 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 12;
-		ki_d = 0.003;
-		kd_d = 30;
+		kp_d = 20;
+		ki_d = 0.004;
+		kd_d = 40;
 
 		//std::fstream file;
 		//FILE *fp;
 
 		//get the error
-		int e = constrain(10, 100, 0.000004381 * _speed * _speed * _speed - 0.001378 * _speed * _speed + 0.3886 * _speed - 1);
+		int e = constrain(10, 50, 0.000004381 * _speed * _speed * _speed - 0.001378 * _speed * _speed + 0.3886 * _speed - 3);
 		D_err = -atan2(_midline[e][0], _midline[e][1]);//only track the aiming point on the middle line
 
 		//the differential and integral operation 
@@ -200,7 +206,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff + 0.5 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 2 * _yaw);
 
 		//print some useful info on the terminal
 		printf("D_err : %f \n", D_err);
@@ -215,7 +221,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		cv::putText(im1Src, cKeyName, cv::Point(20, 50), cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255));
 		cv::imshow("Path", im1Src);
 		cls_visual.Fig1Y(5, 0, 150, 30, "CurrentV", _speed, "c.r", c.r);
-		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "*Acc:", *cmdAcc, "TargetV", expectedSpeed);
+		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "C,R", c.r, "TargetV", expectedSpeed);
 		int tempKey = cv::waitKey(1);
 		if (tempKey != -1)
 			nKey = tempKey;
@@ -227,9 +233,9 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 void PIDParamSetter()
 {
 
-	kp_s = 0.02;
-	ki_s = 0.1;
-	kd_s = 0;
+	kp_s = 0.1;
+	ki_s = 0.5;
+	kd_s = 0.01;
 	kp_d = 1.35;
 	ki_d = 0.151;
 	kd_d = 0.10;
