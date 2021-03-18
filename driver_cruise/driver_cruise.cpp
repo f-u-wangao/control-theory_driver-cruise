@@ -13,6 +13,8 @@
 #include "stdio.h"
 #include <ostream>
 #include <fstream>
+#include <string>
+#include <time.h>
 
 #define PI 3.141592653589793238462643383279
 
@@ -125,12 +127,14 @@ static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, 
 cls_VISUAL cls_visual;																//
 int nKey = 0;																		//
 char cKeyName[512];
+time_t clock_begin = 0;
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
 	static double expectedSpeed1;
 	if (parameterSet == false)		// Initialization Part
 	{
 		PIDParamSetter();
+		clock_begin = clock();
 	}
 	else
 	{
@@ -209,8 +213,10 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 2 * _yaw);
 
 		//print some useful info on the terminal
-		printf("D_err : %f \n", D_err);
-		printf("cmdSteer %f \n", *cmdSteer);
+		if ((clock() - clock_begin) / CLOCKS_PER_SEC == 3)
+		{
+			printf("speed: %f \n", _speed);
+		}
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -236,11 +242,30 @@ void PIDParamSetter()
 	kp_s = 0.1;
 	ki_s = 0.5;
 	kd_s = 0.01;
-	kp_d = 1.35;
-	ki_d = 0.151;
-	kd_d = 0.10;
-	parameterSet = true;
+	kp_d = 20;
+	ki_d = 0.004;
+	kd_d = 40;
 
+	// 把下面的路径改成自己电脑里txt文件的路径
+	// 如果程序退出的话，不要慌，是因为你路径写错了
+	std::ifstream myfile("F:/编程/CyberTORCS/runtime/cybercruise/parameter.txt");
+	if (!myfile.is_open()) exit(0);
+	std::string input;
+	myfile >> input;
+	for (int i = 0; i < 6; i++)
+	{
+		myfile >> input;
+		if (input._Equal("kp_s")) myfile >> kp_s;
+		else if (input._Equal("ki_s")) myfile >> ki_s;
+		else if (input._Equal("kd_s")) myfile >> kd_s;
+		else if (input._Equal("kp_d")) myfile >> kp_d;
+		else if (input._Equal("ki_d")) myfile >> ki_d;
+		else if (input._Equal("kd_d")) myfile >> kd_d;
+	}
+	myfile.close();
+	printf("kp_s = %f,\tki_s = %f,\tkd_s = %f\nkp_d = %f,\tki_d = %f,\tkd_d = %f\n", kp_s, ki_s, kd_s, kp_d, ki_d, kd_d);
+
+	parameterSet = true;
 }
 
 void updateGear(int* cmdGear)

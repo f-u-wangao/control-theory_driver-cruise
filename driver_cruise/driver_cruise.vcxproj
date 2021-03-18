@@ -14,6 +14,7 @@
     <ProjectGuid>{B403ACBE-6581-447A-850E-843340916CB9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>user1</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -45,7 +46,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <OutDir>F:\编程\CyberTORCS\runtime\cybercruise\</OutDir>
     <IncludePath>F:\编程\CyberTORCS\TORCS-Visual 0.1\TORCS-Visual 0.1 test\include;$(IncludePath)</IncludePath>
     <LibraryPath>F:\编程\CyberTORCS\TORCS-Visual 0.1\TORCS-Visual 0.1 test\vs2019\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
