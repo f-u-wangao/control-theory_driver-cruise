@@ -13,8 +13,6 @@
 #include "stdio.h"
 #include <ostream>
 #include <fstream>
-#include <string>
-#include <time.h>
 
 #define PI 3.141592653589793238462643383279
 
@@ -95,6 +93,7 @@ double tmp;												//
 bool flag = true;											//
 double offset = 0;										//
 double Tmp = 0;
+double SpeedErr = 0;
 //******************************************************//
 
 //******************************Helping Functions*******************************//
@@ -128,13 +127,14 @@ cls_VISUAL cls_visual;																//
 int nKey = 0;																		//
 char cKeyName[512];
 time_t clock_begin = 0;
+//FILE* out_stream;
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
-	static double expectedSpeed1;
+	static int judge = 0;
 	if (parameterSet == false)		// Initialization Part
 	{
 		PIDParamSetter();
-		clock_begin = clock();
+		//out_stream = fopen("cybercruise/s_c_a.txt", "w+");
 	}
 	else
 	{
@@ -143,43 +143,43 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		You can modify the limited speed in this module
 		Enjoy  -_-
 		*/
-		startPoint = _speed * 0.445;
-		int m = constrain(21, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 11.511);
-		circle c = getR(_midline[m / 4][0], _midline[m / 4][1], _midline[m / 2][0], _midline[m / 2][1], _midline[m][0], _midline[m][1]);
-		circle c1 = getR(_midline[0][0], _midline[0][1], _midline[5][0], _midline[5][1], _midline[m][0], _midline[m][1]);
+		int m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 16.511);
+		if (judge > 40)
+		{
+			m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 26.511);
+		}
+		circle c = getR(_midline[0][0], _midline[0][1], _midline[m / 2][0], _midline[m / 2][1], _midline[m][0], _midline[m][1]);
 
-		double o = constrain(0, c1.r, c.r);
-		expectedSpeed = 2.93e-06 * o * o * o - 0.003693 * o * o + 1.583 * o + 55.43;
-
-		static double SpeedErr = 0;
+		expectedSpeed = 2.93e-06 * c.r * c.r * c.r - 0.003693 * c.r * c.r + 1.583 * c.r + 48.43;
+		expectedSpeed = constrain(0, 280, expectedSpeed);
 		double Speediff;
 		curSpeedErr = expectedSpeed - _speed;
-		Speediff = curSpeedErr - SpeedErr;
-		SpeedErr = curSpeedErr;
+		Speediff = _speed - SpeedErr;
+		SpeedErr = _speed;
 		speedErrSum = 0.1 * speedErrSum + curSpeedErr;
 		if (curSpeedErr > 0)
 		{
 
-			if (abs(*cmdSteer) < 0.6)
+			if (abs(*cmdSteer) < 0.37)
 			{
 				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr + ki_s * speedErrSum + offset);
 				*cmdBrake = 0;
 			}
-			else if (abs(*cmdSteer) > 0.70)
+			else if (abs(*cmdSteer) > 0.60)
 			{
-				*cmdAcc = 0.055 + offset;
+				*cmdAcc = 0 + offset;
 				*cmdBrake = 0;
 			}
 			else
 			{
-				*cmdAcc = 0.11 + offset;
+				*cmdAcc = 0.1 + offset;
 				*cmdBrake = 0;
 			}
 
 		}
 		else if (curSpeedErr < 0)
 		{
-			*cmdBrake = constrain(0, 1, -ki_s * curSpeedErr / 3 - kd_s * SpeedErr - ki_s * speedErrSum);
+			*cmdBrake = constrain(0, 1, -kp_s * curSpeedErr - kd_s * Speediff - ki_s * speedErrSum);
 			*cmdAcc = 0;
 		}
 
@@ -193,15 +193,23 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 20;
-		ki_d = 0.004;
-		kd_d = 40;
+		kp_d = 10;
+		ki_d = 0.001;
+		kd_d = 23;
 
 		//std::fstream file;
 		//FILE *fp;
 
 		//get the error
-		int e = constrain(10, 50, 0.000004381 * _speed * _speed * _speed - 0.001378 * _speed * _speed + 0.3886 * _speed - 3);
+
+		int e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed - 3);
+		if (*cmdBrake == 1 && _acc < 19)judge++;
+		else if (*cmdBrake == 1 && _acc > 20)judge--;
+		if (judge > 40)
+		{
+			e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed + 13);
+		}
+		judge = constrain(0, 80, judge);
 		D_err = -atan2(_midline[e][0], _midline[e][1]);//only track the aiming point on the middle line
 
 		//the differential and integral operation 
@@ -210,13 +218,13 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 2 * _yaw);
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 0.5 * _yaw);
 
 		//print some useful info on the terminal
-		if ((clock() - clock_begin) / CLOCKS_PER_SEC == 3)
+		/*if (abs(*cmdSteer) <= 0.001 && *cmdBrake >= 0.3)
 		{
-			printf("speed: %f \n", _speed);
-		}
+			fprintf(out_stream, "%d\t%.2f\t%.2f\t%.2f\n", *cmdGear, _speed, *cmdBrake, _acc);
+		}*/
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -227,7 +235,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		cv::putText(im1Src, cKeyName, cv::Point(20, 50), cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255));
 		cv::imshow("Path", im1Src);
 		cls_visual.Fig1Y(5, 0, 150, 30, "CurrentV", _speed, "c.r", c.r);
-		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "C,R", c.r, "TargetV", expectedSpeed);
+		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "Acc", _acc, "+ACC", *cmdAcc);
 		int tempKey = cv::waitKey(1);
 		if (tempKey != -1)
 			nKey = tempKey;
@@ -240,15 +248,14 @@ void PIDParamSetter()
 {
 
 	kp_s = 0.1;
-	ki_s = 0.5;
+	ki_s = 0.1;
 	kd_s = 0.01;
-	kp_d = 20;
-	ki_d = 0.004;
-	kd_d = 40;
+	kp_d = 1.35;
+	ki_d = 0.151;
+	kd_d = 0.10;
 
-	// 把下面的路径改成自己电脑里txt文件的路径
-	// 如果程序退出的话，不要慌，是因为你路径写错了
-	std::ifstream myfile("F:/编程/CyberTORCS/runtime/cybercruise/parameter.txt");
+	//在txt文件中修改参数
+	/*std::ifstream myfile(cybercruise/parameter.txt");
 	if (!myfile.is_open()) exit(0);
 	std::string input;
 	myfile >> input;
@@ -263,9 +270,10 @@ void PIDParamSetter()
 		else if (input._Equal("kd_d")) myfile >> kd_d;
 	}
 	myfile.close();
-	printf("kp_s = %f,\tki_s = %f,\tkd_s = %f\nkp_d = %f,\tki_d = %f,\tkd_d = %f\n", kp_s, ki_s, kd_s, kp_d, ki_d, kd_d);
+	printf("kp_s = %f,\tki_s = %f,\tkd_s = %f\nkp_d = %f,\tki_d = %f,\tkd_d = %f\n", kp_s, ki_s, kd_s, kp_d, ki_d, kd_d);*/
 
 	parameterSet = true;
+
 }
 
 void updateGear(int* cmdGear)
@@ -287,7 +295,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 1;
 		}
-		else if (_speed >= 105 && topGear > 2)
+		else if (_speed >= 112 && topGear > 2)
 		{
 			*cmdGear = 3;
 		}
@@ -302,7 +310,7 @@ void updateGear(int* cmdGear)
 		{
 			*cmdGear = 2;
 		}
-		else if (_speed >= 145 && topGear > 3)
+		else if (_speed >= 152 && topGear > 3)
 		{
 			*cmdGear = 4;
 		}
