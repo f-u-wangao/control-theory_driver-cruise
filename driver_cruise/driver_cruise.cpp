@@ -13,12 +13,15 @@
 #include "stdio.h"
 #include <ostream>
 #include <fstream>
+#include <time.h>
 
 #define PI 3.141592653589793238462643383279
 
 static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, float speed, float acc, float width, int gearbox, float rpm);
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear);
 static int InitFuncPt(int index, void* pt);
+int isInDesertBegin();
+int isInDesert(int* cmdGear, float* cmdSteer, float* cmdAcc, float* cmdBrake);
 
 // Module Entry Point
 extern "C" int driver_cruise(tModInfo * modInfo)
@@ -123,21 +126,52 @@ static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, 
 	_gearbox = gearbox;
 }
 
-cls_VISUAL cls_visual;																//
-int nKey = 0;																		//
+cls_VISUAL cls_visual;
+int nKey = 0;
 char cKeyName[512];
 time_t clock_begin = 0;
+bool desert_normal = 0;		// 1 refers to in the deset, and 0 not
+bool flag_is_desert_begin_judged = 0;
+int count_for_desert = 0;
 //FILE* out_stream;
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
 	static int judge = 0;
 	if (parameterSet == false)		// Initialization Part
 	{
+		clock_begin = clock();
 		PIDParamSetter();
 		//out_stream = fopen("cybercruise/s_c_a.txt", "w+");
 	}
 	else
 	{
+		// judge whether the car is in desert in the beginning of the race
+		if (!flag_is_desert_begin_judged) {
+			int is_in_desert_begin = isInDesertBegin();
+			if (is_in_desert_begin == 1)
+			{
+				desert_normal = 1;
+				flag_is_desert_begin_judged = 1;
+			}
+			else if (is_in_desert_begin == -1)
+			{
+				desert_normal = 0;
+				flag_is_desert_begin_judged = 1;
+			}
+		}
+		else
+		{
+			int is_in_desert = isInDesert(cmdGear, cmdSteer, cmdAcc, cmdBrake);
+			if (is_in_desert == 1)
+			{
+				desert_normal = 1;
+			}
+			else if (is_in_desert == -1)
+			{
+				desert_normal = 0;
+			}
+		}
+
 		// Speed Control
 		/*
 		You can modify the limited speed in this module
@@ -203,8 +237,8 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		//get the error
 
 		int e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed - 3);
-		if (*cmdBrake == 1 && _acc < 19)judge++;
-		else if (*cmdBrake == 1 && _acc > 20)judge--;
+		if (*cmdBrake == 1 && _acc < 19) judge++;
+		else if (*cmdBrake == 1 && _acc > 20) judge--;
 		if (judge > 40)
 		{
 			e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed + 13);
@@ -221,10 +255,13 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 0.5 * _yaw);
 
 		//print some useful info on the terminal
-		/*if (abs(*cmdSteer) <= 0.001 && *cmdBrake >= 0.3)
+		/*if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50)
 		{
-			fprintf(out_stream, "%d\t%.2f\t%.2f\t%.2f\n", *cmdGear, _speed, *cmdBrake, _acc);
+			printf("%d\t%.2f\t%.2f\n", *cmdGear, _speed, _acc);
 		}*/
+		printf("%d\n", desert_normal);
+		/*if ((clock() - clock_begin) / CLOCKS_PER_SEC >= 2 && (clock() - clock_begin) / CLOCKS_PER_SEC <= 2.1)
+			printf("%.2f\n", _speed);*/
 
 #pragma region Wu
 		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
@@ -398,3 +435,67 @@ circle getR(float x1, float y1, float x2, float y2, float x3, float y3)
 	return tmp;
 }
 
+int isInDesertBegin()
+{
+	if ((clock() - clock_begin) / CLOCKS_PER_SEC >= 2)
+	{
+		if (_speed > 65)
+		{
+			return -1;
+		}
+		else if (_speed < 63)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// judge whether the car is in the desert
+// 0 refers to unknown, 1 refers to yes, -1 refers to no
+int isInDesert(int* cmdGear, float* cmdSteer, float* cmdAcc, float* cmdBrake)
+{
+	//if (*cmdBrake > 0.001)
+	//{
+	//	count_for_desert = 0;	//µΩÕ‰µ¿«Â¡„
+	//}
+	if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50)
+	{
+		switch (*cmdGear)
+		{
+		case 1:
+			(_acc > 0.016 * _speed + 3.205) ? (count_for_desert++) : (count_for_desert--);
+			break;
+		case 2:
+			if (_speed <= 105)
+			{
+				(_acc > 0.00024 * (_speed - 50) * (_speed - 50) + 4.05) ? (count_for_desert++) : (count_for_desert--);
+			}
+			break;
+		case 3:
+			if (_speed >= 120)
+			{
+				(_acc > 0.03 * _speed + 1.65) ? (count_for_desert++) : (count_for_desert--);
+			}
+			break;
+		case 4:
+			(_acc > 0.080 * _speed - 5.35) ? (count_for_desert++) : (count_for_desert--);
+			break;
+		case 5:
+			(_acc > 0.15 * _speed - 18.8) ? (count_for_desert++) : (count_for_desert--);
+			break;
+		}
+	}
+
+	if (count_for_desert == 20)
+	{
+		count_for_desert = 0;
+		return 1;
+	}
+	if (count_for_desert == -20)
+	{
+		count_for_desert = 0;
+		return -1;
+	}
+	return 0;
+}
