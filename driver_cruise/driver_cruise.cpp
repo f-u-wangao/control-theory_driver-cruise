@@ -249,7 +249,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		int e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed - 3);
 		if (*cmdBrake == 1 && _acc < 19)judge++;
 		else if (*cmdBrake == 1 && _acc > 20)judge--;
-		if (judge > 40)
+		if (desert_normal)
 		{
 			e = constrain(10, 80, -0.0009392 * _speed * _speed + 0.5417 * _speed - 7);
 		}
@@ -263,7 +263,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 
 		//set the error and get the cmdSteer
 		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 0.5 * _yaw);
-		if (judge > 40)
+		if (desert_normal)
 		{
 			*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff);
 		}
@@ -282,7 +282,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		updateGear(cmdGear);
 
 		//print some useful info on the terminal
-		/*if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50)
+		/*if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50 && *cmdGear != 1)
 		{
 			printf("%d\t%.2f\t%.2f\n", *cmdGear, _speed, _acc);
 		}*/
@@ -478,26 +478,17 @@ int isInDesert(int* cmdGear, float* cmdSteer, float* cmdAcc, float* cmdBrake)
 	{
 		switch (*cmdGear)
 		{
-		case 1:
-			(_acc > 0.016 * _speed + 3.205) ? (count_for_desert++) : (count_for_desert--);
-			break;
 		case 2:
-			if (_speed <= 105)
-			{
-				(_acc > 0.00024 * (_speed - 50) * (_speed - 50) + 4.05) ? (count_for_desert++) : (count_for_desert--);
-			}
+			(_acc > 0.015 * _speed + 3.1) ? (count_for_desert++) : (count_for_desert--);
 			break;
 		case 3:
-			if (_speed >= 120)
-			{
-				(_acc > 0.03 * _speed + 1.65) ? (count_for_desert++) : (count_for_desert--);
-			}
+			(_acc > 0.04 * _speed + 0.3) ? (count_for_desert++) : (count_for_desert--);
 			break;
 		case 4:
-			(_acc > 0.080 * _speed - 5.35) ? (count_for_desert++) : (count_for_desert--);
+			(_acc > 0.090 * _speed - 7) ? (count_for_desert++) : (count_for_desert--);
 			break;
 		case 5:
-			(_acc > 0.15 * _speed - 18.8) ? (count_for_desert++) : (count_for_desert--);
+			(_acc > 0.1 * _speed - 8.6) ? (count_for_desert++) : (count_for_desert--);
 			break;
 		}
 	}
