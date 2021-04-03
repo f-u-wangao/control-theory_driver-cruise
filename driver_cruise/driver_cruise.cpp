@@ -19,8 +19,6 @@
 static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, float speed, float acc, float width, int gearbox, float rpm);
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear);
 static int InitFuncPt(int index, void* pt);
-int isInDesertBegin();
-int isInDesert(int* cmdGear, float* cmdSteer, float* cmdAcc, float* cmdBrake);
 
 // Module Entry Point
 extern "C" int driver_cruise(tModInfo * modInfo)
@@ -54,7 +52,7 @@ static int InitFuncPt(int, void* pt)
 static float _midline[200][2];							//
 static float _yaw, _yawrate, _speed, _acc, _width, _rpm;//
 static int _gearbox;									//
-static int Time = 0;
+int Time = 0;
 //******************************************************//
 
 
@@ -126,68 +124,39 @@ static void userDriverGetParam(float midline[200][2], float yaw, float yawrate, 
 	_gearbox = gearbox;
 }
 
-cls_VISUAL cls_visual;
-int nKey = 0;
+cls_VISUAL cls_visual;																//
+int nKey = 0;																		//
 char cKeyName[512];
-time_t clock_begin = 0;
-bool desert_normal = 0;		// 1 refers to in the deset, and 0 not
-bool flag_is_desert_begin_judged = 0;
-int count_for_desert = 0;
 
 static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, int* cmdGear) {
 	static int judge = 0;
 	if (parameterSet == false)		// Initialization Part
 	{
-		clock_begin = clock();
 		PIDParamSetter();
 	}
 	else
 	{
-		// judge whether the car is in desert in the beginning of the race
-		if (!flag_is_desert_begin_judged) {
-			int is_in_desert_begin = isInDesertBegin();
-			if (is_in_desert_begin == 1)
-			{
-				desert_normal = 1;
-				flag_is_desert_begin_judged = 1;
-			}
-			else if (is_in_desert_begin == -1)
-			{
-				desert_normal = 0;
-				flag_is_desert_begin_judged = 1;
-			}
-		}
-		else
-		{
-			int is_in_desert = isInDesert(cmdGear, cmdSteer, cmdAcc, cmdBrake);
-			if (is_in_desert == 1)
-			{
-				desert_normal = 1;
-			}
-			else if (is_in_desert == -1)
-			{
-				desert_normal = 0;
-			}
-		}
-
 		// Speed Control
 		/*
 		You can modify the limited speed in this module
 		Enjoy  -_-
 		*/
-		int m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 16.511);
+		int m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 31.511);
 		if (judge > 40)
 		{
-			m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 27.511);
+			m = constrain(5, 200, 0.002945 * _speed * _speed - 0.08891 * _speed + 60.511);
 		}
 		circle c = getR(_midline[0][0], _midline[0][1], _midline[m / 2][0], _midline[m / 2][1], _midline[m][0], _midline[m][1]);
 
-		expectedSpeed = 2.93e-06 * c.r * c.r * c.r - 0.003693 * c.r * c.r + 1.583 * c.r + 48.43;
+		expectedSpeed = 2.93e-06 * c.r * c.r * c.r - 0.003693 * c.r * c.r + 1.583 * c.r - 25;
 		if (judge > 40)
 		{
-			expectedSpeed = 2.93e-06 * c.r * c.r * c.r - 0.003693 * c.r * c.r + 1.583 * c.r + 40.43;
+			expectedSpeed = 2.93e-06 * c.r * c.r * c.r - 0.003693 * c.r * c.r + 1.583 * c.r - 85;
+			expectedSpeed = constrain(60, 150, expectedSpeed);
 		}
-		expectedSpeed = constrain(0, 280, expectedSpeed);
+		else
+			expectedSpeed = constrain(65, 280, expectedSpeed);
+
 		double Speediff;
 		curSpeedErr = expectedSpeed - _speed;
 		Speediff = _speed - SpeedErr;
@@ -196,19 +165,24 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		if (curSpeedErr > 0)
 		{
 
-			if (abs(*cmdSteer) < 0.32)
+			if (abs(*cmdSteer) < 0.3)
 			{
-				*cmdAcc = constrain(0.0, 1.0, kp_s * curSpeedErr / 2 + ki_s * speedErrSum + kd_s * Speediff + offset);
+				*cmdAcc = constrain(0.0, 0.7, kp_s * curSpeedErr / 2 + ki_s * speedErrSum + kd_s * Speediff + offset);
 				*cmdBrake = 0;
+				if (judge > 40)
+				{
+					*cmdAcc = constrain(0, 0.45, kp_s * curSpeedErr / 2 + ki_s * speedErrSum + kd_s * Speediff + offset);
+					*cmdBrake = 0;
+				}
 			}
-			else if (abs(*cmdSteer) > 0.60)
+			else if (abs(*cmdSteer) > 0.6)
 			{
 				*cmdAcc = 0 + offset;
 				*cmdBrake = 0;
 			}
 			else
 			{
-				*cmdAcc = 0.1 + offset;
+				*cmdAcc = 0.005 + offset;
 				*cmdBrake = 0;
 			}
 
@@ -218,7 +192,6 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 			*cmdBrake = constrain(0, 1, -kp_s * curSpeedErr - kd_s * Speediff - ki_s * speedErrSum);
 			*cmdAcc = 0;
 		}
-
 		if (_speed <= 1 && Time < 310) Time++;
 
 		updateGear(cmdGear);
@@ -231,14 +204,14 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		*/
 		// Direction Control		
 		//set the param of PID controller
-		kp_d = 10;
-		ki_d = 0;
-		kd_d = 23;
+		kp_d = 14;
+		ki_d = 0.001;
+		kd_d = 27;
 		if (judge > 40)
 		{
-			kp_d = 12;
+			kp_d = 10;
 			ki_d = 0;
-			kd_d = 30;
+			kd_d = 35;
 		}
 
 		//std::fstream file;
@@ -246,52 +219,33 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 
 		//get the error
 
-		int e = constrain(10, 80, -0.0005092 * _speed * _speed + 0.3691 * _speed - 3);
 		if (*cmdBrake == 1 && _acc < 19)judge++;
 		else if (*cmdBrake == 1 && _acc > 20)judge--;
-		if (desert_normal)
-		{
-			e = constrain(10, 80, -0.0009392 * _speed * _speed + 0.5417 * _speed - 7);
-		}
 		judge = constrain(0, 80, judge);
-		D_err = -atan2(_midline[e][0], _midline[e][1]);//only track the aiming point on the middle line
 
-		//the differential and integral operation 
+		double distance;
+		int k = 27;
+		distance = _midline[0][0] * sqrt(_midline[0][1] * _midline[0][1] + _midline[0][0] * _midline[0][0]) / abs(_midline[0][0]);
+
+		D_err = -atan2(k * distance, _speed) + _yaw;//stanley method
+		if (judge > 40)
+		{
+			D_err = -atan2(k * distance, _speed) + 2 * _yaw;
+		}
 		D_errDiff = D_err - Tmp;
 		D_errSum = D_errSum + D_err;
 		Tmp = D_err;
 
 		//set the error and get the cmdSteer
-		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff - 0.5 * _yaw);
-		if (desert_normal)
-		{
-			*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + ki_d * D_errSum + kd_d * D_errDiff);
-		}
-
-		if (Time >= 4 && Time < 285)
-		{
-			*cmdAcc = 1; _acc = 1; expectedSpeed = -30; *cmdGear = -1; _gearbox = -1;
-		}
-		if (Time >= 285 && Time < 310) *cmdBrake = 1;
-
-		if (Time >= 310 && _speed <= 5) {
-			*cmdAcc = 0.4; _acc = 0.4; expectedSpeed = 60; *cmdGear = 2; _gearbox = 2;
-			if (_speed >= 10) { Time = 0; }
-		}
-
+		*cmdSteer = constrain(-1.0, 1.0, kp_d * D_err + kd_d * D_errDiff);//stanley combined with pid;
 		updateGear(cmdGear);
 
 		//print some useful info on the terminal
-		/*if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50 && *cmdGear != 1)
-		{
-			printf("%d\t%.2f\t%.2f\n", *cmdGear, _speed, _acc);
-		}*/
-		printf("%d\n", desert_normal);
-		/*if ((clock() - clock_begin) / CLOCKS_PER_SEC >= 2 && (clock() - clock_begin) / CLOCKS_PER_SEC <= 2.1)
-			printf("%.2f\n", _speed);*/
+		printf("D_err : %f \t", D_err);
+		printf("cmdSteer %f \n", *cmdSteer);
 
 #pragma region Wu
-		cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
+		/*cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
 
 		for (int i = 0; i < 200; i++)
 			cv::circle(im1Src, cv::Point(200 + _midline[i][0] * 2, 400 - _midline[i][1] * 2), 2, cv::Scalar(100, 100, 100));
@@ -302,7 +256,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		cls_visual.Fig2Y(3, 0, 150, 0, 1, 10, "CurrentV", _speed, "Acc", _acc, "+ACC", *cmdAcc);
 		int tempKey = cv::waitKey(1);
 		if (tempKey != -1)
-			nKey = tempKey;
+			nKey = tempKey;*/
 #pragma endregion
 		/******************************************End by Yuan Wei********************************************/
 	}
@@ -450,58 +404,4 @@ circle getR(float x1, float y1, float x2, float y2, float x3, float y3)
 	return tmp;
 }
 
-int isInDesertBegin()
-{
-	if ((clock() - clock_begin) / CLOCKS_PER_SEC >= 2)
-	{
-		if (_speed > 65)
-		{
-			return -1;
-		}
-		else if (_speed < 63)
-		{
-			return 1;
-		}
-	}
-	return 0;
-}
 
-// judge whether the car is in the desert
-// 0 refers to unknown, 1 refers to yes, -1 refers to no
-int isInDesert(int* cmdGear, float* cmdSteer, float* cmdAcc, float* cmdBrake)
-{
-	//if (*cmdBrake > 0.001)
-	//{
-	//	count_for_desert = 0;	//µΩÕ‰µ¿«Â¡„
-	//}
-	if (abs(*cmdSteer) <= 0.01 && *cmdAcc == 1 && _acc >= 4 && _acc <= 15 && _speed >= 50)
-	{
-		switch (*cmdGear)
-		{
-		case 2:
-			(_acc > 0.015 * _speed + 3.1) ? (count_for_desert++) : (count_for_desert--);
-			break;
-		case 3:
-			(_acc > 0.04 * _speed + 0.3) ? (count_for_desert++) : (count_for_desert--);
-			break;
-		case 4:
-			(_acc > 0.090 * _speed - 7) ? (count_for_desert++) : (count_for_desert--);
-			break;
-		case 5:
-			(_acc > 0.1 * _speed - 8.6) ? (count_for_desert++) : (count_for_desert--);
-			break;
-		}
-	}
-
-	if (count_for_desert == 20)
-	{
-		count_for_desert = 0;
-		return 1;
-	}
-	if (count_for_desert == -20)
-	{
-		count_for_desert = 0;
-		return -1;
-	}
-	return 0;
-}
