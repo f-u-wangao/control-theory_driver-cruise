@@ -175,7 +175,7 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 		if (is_in_desert)
 		{
 			expectedSpeed = -9.432e-07 * c.r * c.r * c.r + 0.0009511 * c.r * c.r + 0.04797 * c.r + 54.85;
-			expectedSpeed = constrain(50, 150, expectedSpeed);
+			expectedSpeed = constrain(40, 150, expectedSpeed);
 		}
 		else
 		{
@@ -201,9 +201,9 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 				{
 					*cmdAcc = constrain(0.0, 0.4, kp_s * curSpeedErr / 2 + ki_s * speedErrSum + kd_s * Speediff + offset);
 				}
-
 				*cmdBrake = 0;
-				if (is_in_desert == 1)
+
+				if (is_in_desert)
 				{
 					*cmdAcc = constrain(0, 0.25, kp_s * curSpeedErr / 2 + ki_s * speedErrSum + kd_s * Speediff + offset);
 					*cmdBrake = 0;
@@ -271,12 +271,15 @@ static void userDriverSetParam(float* cmdAcc, float* cmdBrake, float* cmdSteer, 
 
 		//set the error and get the cmdSteer
 		*cmdSteer = constrain(-1, 1, kp_d * D_err + kd_d * D_errDiff);//stanley combined with pid;
+		if (isnan(*cmdSteer)) *cmdSteer = 0;
 		updateGear(cmdGear);
 
 		//print some useful info on the terminal
-		printf("c.r: %f \t", c.r);
-		printf("speed: %f \t", _speed);
-		printf("cmdSteer: %f \n", *cmdSteer);
+		if ((clock() - clock_begin) / CLOCKS_PER_SEC <= 2)
+		{
+			printf("%f \t", _speed);
+			printf("%f \n", _acc);
+		}
 
 #pragma region Wu
 		/*cv::Mat im1Src = cv::Mat::zeros(cv::Size(400, 400), CV_8UC1);
